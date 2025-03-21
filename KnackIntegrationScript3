@@ -477,73 +477,6 @@ window.addEventListener('message', function(event) {
               });
             }
             break;
-            
-          case 'VERIFY_TOPIC_LIST':
-            const recordId = event.data.data.recordId;
-            const subject = event.data.data.subject;
-            const examBoard = event.data.data.examBoard;
-            const examType = event.data.data.examType;
-            
-            // Fetch the record to verify topic list exists
-            $.ajax({
-              url: `${KNACK_API_URL}/objects/${FLASHCARD_OBJECT}/records/${recordId}`,
-              type: "GET",
-              headers: {
-                'X-Knack-Application-Id': knackAppId,
-                'X-Knack-REST-API-Key': knackApiKey,
-                'Authorization': Knack.getUserToken(),
-                'Content-Type': 'application/json'
-              },
-              success: function(response) {
-                // Log verification results with detailed info
-                console.log("Verification results:", {
-                  hasField3011: !!response[FIELD_MAPPING.topicLists],
-                  dataLength: response[FIELD_MAPPING.topicLists] ? response[FIELD_MAPPING.topicLists].length : 0
-                });
-                
-                try {
-                  const topicLists = safeParseJSON(response[FIELD_MAPPING.topicLists] || "[]");
-                  const matchFound = topicLists.some(list => 
-                    list.subject === subject && 
-                    list.examBoard === examBoard && 
-                    list.examType === examType
-                  );
-                  
-                  console.log(`Verification ${matchFound ? "PASSED" : "FAILED"}: Topic list for ${subject}`);
-                  
-                  // Send verification result back to app
-                  iframe.contentWindow.postMessage({
-                    type: "TOPIC_LIST_VERIFIED",
-                    success: matchFound,
-                    data: {
-                      subject,
-                      examBoard,
-                      examType
-                    }
-                  }, "*");
-                } catch(e) {
-                  console.error("Verification parse error:", e);
-                  
-                  // Send failure result
-                  iframe.contentWindow.postMessage({
-                    type: "TOPIC_LIST_VERIFIED",
-                    success: false,
-                    error: e.message
-                  }, "*");
-                }
-              },
-              error: function(error) {
-                console.error("Verification request failed:", error);
-                
-                // Send failure result
-                iframe.contentWindow.postMessage({
-                  type: "TOPIC_LIST_VERIFIED",
-                  success: false,
-                  error: "Failed to fetch record"
-                }, "*");
-              }
-            });
-            break;
         }
       }
     });
@@ -1094,8 +1027,9 @@ function handleAddToBank(userId, data, callback) {
         // Add new items to Box 1
         const updatedBox1 = [...box1Cards, ...newBox1Items];
         
-        // Prepare data to save
+        // Prepare data to save - preserve all existing fields
         const updateData = {
+          ...existingData, // Preserve all existing fields
           [FIELD_MAPPING.cardBankData]: JSON.stringify(updatedCards),
           [FIELD_MAPPING.box1Data]: JSON.stringify(updatedBox1),
           [FIELD_MAPPING.lastSaved]: new Date().toISOString()
