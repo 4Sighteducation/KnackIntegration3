@@ -172,134 +172,6 @@ function getSyncService() {
       const cards = typedItems.filter(item => item.type !== 'topic');
       
       return { topics, cards };
-    },
-    processKnackDataForReactApp: (data) => {
-      // Process the Knack data for the React app
-      try {
-        // Create a reference to the splitByType function to avoid self-reference
-        const syncService = getSyncService();
-        const splitByTypeFunc = syncService.splitByType;
-        
-        // Create a structured response object
-        const processedData = {};
-        
-        // Process card bank data
-        if (data[FIELD_MAPPING.cardBankData]) {
-          let cardData = data[FIELD_MAPPING.cardBankData];
-          if (typeof cardData === 'string' && cardData.includes('%')) {
-            cardData = safeDecodeURIComponent(cardData);
-          }
-          const parsedCardBank = safeParseJSON(cardData) || [];
-          
-          // Split the card bank into topic shells and cards
-          const { topics, cards } = splitByTypeFunc(parsedCardBank);
-          
-          // Store both in the processed data
-          processedData.cards = cards;
-          processedData.topicShells = topics;
-        }
-        
-        // Process color mapping
-        if (data[FIELD_MAPPING.colorMapping]) {
-          let colorData = data[FIELD_MAPPING.colorMapping];
-          if (typeof colorData === 'string' && colorData.includes('%')) {
-            colorData = safeDecodeURIComponent(colorData);
-          }
-          processedData.colorMapping = safeParseJSON(colorData) || {};
-        }
-        
-        // Process spaced repetition data
-        const spacedRepetition = {
-          box1: [],
-          box2: [],
-          box3: [],
-          box4: [],
-          box5: []
-        };
-        
-        // Box 1
-        if (data[FIELD_MAPPING.box1Data]) {
-          let box1Data = data[FIELD_MAPPING.box1Data];
-          if (typeof box1Data === 'string' && box1Data.includes('%')) {
-            box1Data = safeDecodeURIComponent(box1Data);
-          }
-          spacedRepetition.box1 = safeParseJSON(box1Data) || [];
-        }
-        
-        // Box 2
-        if (data[FIELD_MAPPING.box2Data]) {
-          let box2Data = data[FIELD_MAPPING.box2Data];
-          if (typeof box2Data === 'string' && box2Data.includes('%')) {
-            box2Data = safeDecodeURIComponent(box2Data);
-          }
-          spacedRepetition.box2 = safeParseJSON(box2Data) || [];
-        }
-        
-        // Box 3
-        if (data[FIELD_MAPPING.box3Data]) {
-          let box3Data = data[FIELD_MAPPING.box3Data];
-          if (typeof box3Data === 'string' && box3Data.includes('%')) {
-            box3Data = safeDecodeURIComponent(box3Data);
-          }
-          spacedRepetition.box3 = safeParseJSON(box3Data) || [];
-        }
-        
-        // Box 4
-        if (data[FIELD_MAPPING.box4Data]) {
-          let box4Data = data[FIELD_MAPPING.box4Data];
-          if (typeof box4Data === 'string' && box4Data.includes('%')) {
-            box4Data = safeDecodeURIComponent(box4Data);
-          }
-          spacedRepetition.box4 = safeParseJSON(box4Data) || [];
-        }
-        
-        // Box 5
-        if (data[FIELD_MAPPING.box5Data]) {
-          let box5Data = data[FIELD_MAPPING.box5Data];
-          if (typeof box5Data === 'string' && box5Data.includes('%')) {
-            box5Data = safeDecodeURIComponent(box5Data);
-          }
-          spacedRepetition.box5 = safeParseJSON(box5Data) || [];
-        }
-        
-        // Add spaced repetition data to processed data
-        processedData.spacedRepetition = spacedRepetition;
-        
-        // Process topic lists if available
-        if (data[FIELD_MAPPING.topicLists]) {
-          let topicListsData = data[FIELD_MAPPING.topicLists];
-          if (typeof topicListsData === 'string' && topicListsData.includes('%')) {
-            topicListsData = safeDecodeURIComponent(topicListsData);
-          }
-          processedData.topicLists = safeParseJSON(topicListsData) || [];
-        }
-        
-        // Process review data if available
-        if (data[FIELD_MAPPING.reviewData]) {
-          let reviewData = data[FIELD_MAPPING.reviewData];
-          if (typeof reviewData === 'string' && reviewData.includes('%')) {
-            reviewData = safeDecodeURIComponent(reviewData);
-          }
-          processedData.reviewData = safeParseJSON(reviewData) || [];
-        }
-        
-        // Process topic metadata if available
-        if (data[FIELD_MAPPING.topicMetadata]) {
-          let metadataString = data[FIELD_MAPPING.topicMetadata];
-          if (typeof metadataString === 'string' && metadataString.includes('%')) {
-            metadataString = safeDecodeURIComponent(metadataString);
-          }
-          processedData.topicMetadata = safeParseJSON(metadataString) || [];
-        }
-        
-        // Add record ID to the processed data
-        processedData.recordId = data.id;
-        
-        return processedData;
-      } catch (error) {
-        console.error(`Flashcard app [${new Date().toISOString()}]: Error processing Knack data:`, error);
-        return data; // Return original data as fallback
-      }
     }
   };
 }
@@ -586,129 +458,61 @@ window.addEventListener('message', function(event) {
           timestamp: new Date().toISOString()
         });
         
-        // Check if preserveFields flag is set (for topic list saving)
-        if (event.data.data.preserveFields === true && event.data.data.completeData) {
-          console.log(`Flashcard app [${new Date().toISOString()}]: Using data preservation mode for saving`);
-          
-          // Extract user ID from the message data or use the current user ID
-          const userId = event.data.data.userId || user.id;
-          
-          // Handle preserving fields when saving topic lists
-          handlePreserveFieldsDataSave(userId, event.data.data, function(success) {
-            debugLog("SAVE_RESULT SENDING", {
-              success: success,
-              preserveFields: true,
-              timestamp: new Date().toISOString()
-            });
-            
-            // Notify the React app about the save result
-            iframe.contentWindow.postMessage({
-              type: 'SAVE_RESULT',
-              success: success,
-              timestamp: new Date().toISOString()
-            }, '*');
-            
-            // If save was successful, verify it immediately
-            if (success && event.data.data.recordId) {
-              verifyDataSave(event.data.data.recordId);
-            }
-          });
-        } else {
-          // Standard save operation (original behavior)
-          saveFlashcardUserData(user.id, event.data.data, function(success) {
-            // Notify the React app about the save result
-            iframe.contentWindow.postMessage({
-              type: 'SAVE_RESULT',
-              success: success
-            }, '*');
-          });
-        }
+        // Use our debounced save handler instead of direct calls
+        const saveResult = handleSaveData(event.data.data);
+        
+        // We'll still notify about the save operation being received
+        iframe.contentWindow.postMessage({
+          type: 'SAVE_OPERATION_QUEUED',
+          timestamp: new Date().toISOString()
+        }, '*');
         break;
             
           case 'ADD_TO_BANK':
             console.log("Flashcard app: Adding cards to bank:", event.data.data);
             
-            // Handle adding cards to both the card bank and Box 1
-            handleAddToBank(event.data.data, function(success) {
-              // Notify the React app about the result
-              iframe.contentWindow.postMessage({
-                type: 'ADD_TO_BANK_RESULT',
-                success: success,
-                shouldReload: true // Add flag to trigger reload
-              }, '*');
-              
-              // If successful, also send a reload message after a short delay
-              // But DO NOT reload the entire page - just notify the React app
-              if (success) {
+            // Prevent multiple operations by setting a flag
+            if (window.addToBankInProgress) {
+              console.log("Add to bank operation already in progress, ignoring duplicate request");
+              return;
+            }
+            
+            window.addToBankInProgress = true;
+            
+            // Use our Promise-based approach
+            handleAddToBankPromise(event.data.data)
+              .then((success) => {
+                // Notify the React app about the result
+                iframe.contentWindow.postMessage({
+                  type: 'ADD_TO_BANK_RESULT',
+                  success: true,
+                  shouldReload: true
+                }, '*');
+                
+                // Wait before sending a reload message to ensure database commits are complete
                 setTimeout(() => {
                   iframe.contentWindow.postMessage({
                     type: 'RELOAD_APP_DATA',
                     timestamp: new Date().toISOString()
                   }, '*');
-                }, 1000);
-              }
-            });
-            break;
-            
-          // Handle requests for updated data from the React app
-          case 'REQUEST_UPDATED_DATA':
-            console.log(`Flashcard app [${new Date().toISOString()}]: Request for updated data received`);
-            
-            // Get the record ID from the message or use the current user
-            const dataUserId = user.id;
-            const dataRecordId = event.data.recordId;
-            
-            if (!dataRecordId) {
-              console.error("Flashcard app: Cannot refresh data - missing record ID");
-              iframe.contentWindow.postMessage({
-                type: 'DATA_REFRESH_ERROR',
-                error: 'Missing record ID'
-              }, '*');
-              return;
-            }
-            
-            // Load the latest data directly without reloading the page
-            $.ajax({
-              url: KNACK_API_URL + '/objects/' + FLASHCARD_OBJECT + '/records/' + dataRecordId,
-              type: 'GET',
-              headers: {
-                'X-Knack-Application-Id': knackAppId,
-                'X-Knack-REST-API-Key': knackApiKey,
-                'Authorization': Knack.getUserToken(),
-                'Content-Type': 'application/json'
-              },
-              success: function(response) {
-                try {
-                  // Process the response data for the React app
-                  const processedResponse = getSyncService().processKnackDataForReactApp(response);
                   
-                  console.log(`Flashcard app [${new Date().toISOString()}]: Sending updated data to React app`);
-                  
-                  // Send the processed data back to the React app
-                  iframe.contentWindow.postMessage({
-                    type: 'LOAD_SAVED_DATA',
-                    data: processedResponse
-                  }, '*');
-                } catch (error) {
-                  console.error(`Flashcard app [${new Date().toISOString()}]: Error processing data:`, error);
-                  
-                  // Send error message back to React app
-                  iframe.contentWindow.postMessage({
-                    type: 'DATA_REFRESH_ERROR',
-                    error: error.message || 'Unknown error'
-                  }, '*');
-                }
-              },
-              error: function(error) {
-                console.error(`Flashcard app [${new Date().toISOString()}]: Error fetching updated data:`, error);
+                  // Reset flag
+                  window.addToBankInProgress = false;
+                }, 2000); // Increased delay to 2 seconds for safer operation
+              })
+              .catch((error) => {
+                console.error("Failed to add cards to bank:", error);
                 
-                // Send error message back to React app
+                // Notify about failure
                 iframe.contentWindow.postMessage({
-                  type: 'DATA_REFRESH_ERROR',
-                  error: error.statusText || 'Network error'
+                  type: 'ADD_TO_BANK_RESULT',
+                  success: false,
+                  error: error.message
                 }, '*');
-              }
-            });
+                
+                // Reset flag
+                window.addToBankInProgress = false;
+              });
             break;
             
           case 'TOPIC_LISTS_UPDATED':
@@ -812,6 +616,53 @@ window.addEventListener('message', function(event) {
               }, 1000);
             }
             break;
+            
+          // Add handler for REQUEST_UPDATED_DATA message
+          case 'REQUEST_UPDATED_DATA':
+            console.log(`Flashcard app [${new Date().toISOString()}]: Requested updated data`);
+            
+            // Get the record ID from the message or use the current user
+            const dataUserId = user.id;
+            const dataRecordId = event.data.recordId;
+            
+            if (!dataRecordId) {
+              console.error("Flashcard app: Cannot refresh data - missing record ID");
+              iframe.contentWindow.postMessage({
+                type: 'DATA_REFRESH_ERROR',
+                error: 'Missing record ID'
+              }, '*');
+              return;
+            }
+            
+            // Load the latest data directly
+            loadFlashcardUserData(dataUserId, function(userData) {
+              if (userData) {
+                console.log(`Flashcard app [${new Date().toISOString()}]: Sending refreshed data to React app`);
+                
+                // Send updated data back to the React app
+                iframe.contentWindow.postMessage({
+                  type: 'KNACK_DATA',
+                  cards: userData.cards || [],
+                  colorMapping: userData.colorMapping || {},
+                  topicLists: userData.topicLists || [],
+                  topicMetadata: userData.topicMetadata || [],
+                  recordId: dataRecordId,
+                  auth: {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name || ''
+                  },
+                  timestamp: new Date().toISOString()
+                }, '*');
+              } else {
+                console.error(`Flashcard app [${new Date().toISOString()}]: Error loading updated data`);
+                iframe.contentWindow.postMessage({
+                  type: 'DATA_REFRESH_ERROR',
+                  error: 'Failed to load data'
+                }, '*');
+              }
+            });
+            break;
 }
       }
     });
@@ -825,30 +676,44 @@ window.addEventListener('message', function(event) {
 function loadFlashcardUserData(userId, callback) {
   console.log("Flashcard app: Loading user data for:", userId);
 
-  // First, check if the user already has a flashcard record
-  $.ajax({
-    url: KNACK_API_URL + '/objects/' + FLASHCARD_OBJECT + '/records',
-    type: 'GET',
-    headers: {
-      'X-Knack-Application-Id': knackAppId,
-      'X-Knack-REST-API-Key': knackApiKey,
-      'Authorization': Knack.getUserToken(),
-      'Content-Type': 'application/json'
-    },
-    data: {
-      format: 'raw',
-      filters: JSON.stringify({
-        match: 'and',
-        rules: [
-          {
-            field: FIELD_MAPPING.userId,
-            operator: 'is',
-            value: userId
-          }
-        ]
-      })
-    },
-    success: function(response) {
+  // Create a function that returns a Promise for the API call
+  const apiCall = () => {
+    return new Promise((resolve, reject) => {
+      $.ajax({
+        url: KNACK_API_URL + '/objects/' + FLASHCARD_OBJECT + '/records',
+        type: 'GET',
+        headers: {
+          'X-Knack-Application-Id': knackAppId,
+          'X-Knack-REST-API-Key': knackApiKey,
+          'Authorization': Knack.getUserToken(),
+          'Content-Type': 'application/json'
+        },
+        data: {
+          format: 'raw',
+          filters: JSON.stringify({
+            match: 'and',
+            rules: [
+              {
+                field: FIELD_MAPPING.userId,
+                operator: 'is',
+                value: userId
+              }
+            ]
+          })
+        },
+        success: function(response) {
+          resolve(response);
+        },
+        error: function(error) {
+          reject(error);
+        }
+      });
+    });
+  };
+
+  // Use our retry mechanism
+  retryApiCall(apiCall)
+    .then((response) => {
       console.log("Flashcard app: User data search response:", response);
       
       if (response.records && response.records.length > 0) {
@@ -1006,12 +871,11 @@ function loadFlashcardUserData(userId, callback) {
           }
         });
       }
-    },
-    error: function(error) {
-      console.error("Flashcard app: Error loading user data:", error);
+    })
+    .catch((error) => {
+      console.error("Flashcard app: Error loading user data after retries:", error);
       callback(null);
-    }
-  });
+    });
 }
 
 // Create a new flashcard user record
@@ -1397,90 +1261,191 @@ function handlePreserveFieldsDataSave(userId, data, callback) {
     return;
   }
   
-  // Get the complete data provided
-  const completeData = data.completeData;
-  
-  // Get cleaned versions of the topic data we want to update
-  const cleanTopicLists = ensureDataIsSerializable(data.topicLists || []);
-  const cleanTopicMetadata = ensureDataIsSerializable(data.topicMetadata || []);
-  
-  // Create an update object that contains ONLY the fields we want to update
-  // while preserving all other fields
-  const updateData = {
-    // Only update the following fields
-    [FIELD_MAPPING.topicLists]: JSON.stringify(cleanTopicLists),
-    [FIELD_MAPPING.topicMetadata]: JSON.stringify(cleanTopicMetadata),
-    [FIELD_MAPPING.lastSaved]: new Date().toISOString()
-  };
-  
-  // Log what we're updating
-  debugLog("UPDATING ONLY THESE FIELDS (PRESERVING OTHERS)", {
-    topicListsCount: cleanTopicLists.length,
-    topicMetadataCount: cleanTopicMetadata.length,
-    recordId: recordId,
-    timestamp: new Date().toISOString()
-  });
-  
-  // Implement retry mechanism for more reliable saving
-  let retryCount = 0;
-  const maxRetries = 2;
-  
-  function attemptSave() {
-    // Save to Knack
-    $.ajax({
-      url: KNACK_API_URL + '/objects/' + FLASHCARD_OBJECT + '/records/' + recordId,
-      type: 'PUT',
-      headers: {
-        'X-Knack-Application-Id': knackAppId,
-        'X-Knack-REST-API-Key': knackApiKey,
-        'Authorization': Knack.getUserToken(),
-        'Content-Type': 'application/json'
-      },
-      data: JSON.stringify(updateData),
-      success: function(response) {
-        console.log(`Flashcard app [${new Date().toISOString()}]: Successfully saved topic list data:`, response.id);
-        debugLog("SAVE SUCCESS", {
-          recordId: response.id,
-          timestamp: new Date().toISOString()
-        });
-        
-        // If successful, verify the save immediately
-        verifyDataSave(recordId);
-        
-        // IMPORTANT: Create topic shells immediately when topic lists are saved
-        if (cleanTopicLists && cleanTopicLists.length > 0) {
-          console.log(`Flashcard app [${new Date().toISOString()}]: Creating topic shells for ${cleanTopicLists.length} topic lists`);
-          createTopicShellsFromLists(cleanTopicLists, recordId);
-        } else {
-          console.log(`Flashcard app [${new Date().toISOString()}]: No topic lists to create shells from`);
+  // First, get the current data to perform a proper merge
+  getUserDataById(recordId, function(existingData) {
+    if (!existingData) {
+      console.error(`Flashcard app [${new Date().toISOString()}]: Error getting user data for merging`);
+      callback(false);
+      return;
+    }
+    
+    // Extract existing topic lists if any
+    let existingTopicLists = [];
+    if (existingData[FIELD_MAPPING.topicLists]) {
+      try {
+        let topicListsData = existingData[FIELD_MAPPING.topicLists];
+        if (typeof topicListsData === 'string' && topicListsData.includes('%')) {
+          topicListsData = safeDecodeURIComponent(topicListsData);
         }
-        
-        callback(true);
-      },
-      error: function(error) {
-        console.error(`Flashcard app [${new Date().toISOString()}]: Error saving topic list data:`, error);
-        debugLog("SAVE ERROR", {
-          recordId: recordId,
-          errorStatus: error.status,
-          errorText: error.statusText,
-          retryCount: retryCount
-        });
-        
-        // Retry logic for failed saves
-        if (retryCount < maxRetries) {
-          console.log(`Flashcard app [${new Date().toISOString()}]: Retrying save (${retryCount + 1}/${maxRetries})...`);
-          retryCount++;
-          // Wait before retrying
-          setTimeout(attemptSave, 1000);
-        } else {
-          callback(false);
+        existingTopicLists = safeParseJSON(topicListsData) || [];
+        console.log(`Flashcard app [${new Date().toISOString()}]: Found ${existingTopicLists.length} existing topic lists for merging`);
+      } catch (e) {
+        console.error(`Flashcard app [${new Date().toISOString()}]: Error parsing existing topic lists:`, e);
+        existingTopicLists = [];
+      }
+    }
+    
+    // Extract existing topic metadata if any
+    let existingMetadata = [];
+    if (existingData[FIELD_MAPPING.topicMetadata]) {
+      try {
+        let metadataData = existingData[FIELD_MAPPING.topicMetadata];
+        if (typeof metadataData === 'string' && metadataData.includes('%')) {
+          metadataData = safeDecodeURIComponent(metadataData);
         }
+        existingMetadata = safeParseJSON(metadataData) || [];
+        console.log(`Flashcard app [${new Date().toISOString()}]: Found ${existingMetadata.length} existing topic metadata items for merging`);
+      } catch (e) {
+        console.error(`Flashcard app [${new Date().toISOString()}]: Error parsing existing topic metadata:`, e);
+        existingMetadata = [];
+      }
+    }
+    
+    // Get cleaned versions of the new topic data
+    const newTopicLists = ensureDataIsSerializable(data.topicLists || []);
+    const newTopicMetadata = ensureDataIsSerializable(data.topicMetadata || []);
+    
+    // Create maps for existing topic lists by subject
+    const existingSubjectMap = new Map();
+    existingTopicLists.forEach(list => {
+      if (list.subject) {
+        existingSubjectMap.set(list.subject, list);
       }
     });
-  }
-  
-  // Start the save process
-  attemptSave();
+    
+    // Create maps for existing metadata by ID
+    const existingMetadataMap = new Map();
+    existingMetadata.forEach(item => {
+      if (item.topicId) {
+        existingMetadataMap.set(item.topicId, item);
+      } else if (item.subject) {
+        existingMetadataMap.set(`subject_${item.subject}`, item);
+      }
+    });
+    
+    // Merge the topic lists - add new ones and update existing ones
+    let mergedTopicLists = [...existingTopicLists]; // Start with existing lists
+    
+    // Process new topic lists
+    newTopicLists.forEach(newList => {
+      if (!newList.subject) return; // Skip invalid lists
+      
+      const existingIndex = mergedTopicLists.findIndex(list => list.subject === newList.subject);
+      
+      if (existingIndex >= 0) {
+        // Update existing list
+        mergedTopicLists[existingIndex] = { ...newList };
+        console.log(`Flashcard app [${new Date().toISOString()}]: Updated topic list for subject: ${newList.subject}`);
+      } else {
+        // Add new list
+        mergedTopicLists.push({ ...newList });
+        console.log(`Flashcard app [${new Date().toISOString()}]: Added new topic list for subject: ${newList.subject}`);
+      }
+    });
+    
+    // Merge metadata - add new ones and update existing ones
+    let mergedMetadata = [...existingMetadata]; // Start with existing metadata
+    
+    // Process new metadata
+    newTopicMetadata.forEach(newItem => {
+      let key = newItem.topicId || (newItem.subject ? `subject_${newItem.subject}` : null);
+      if (!key) return; // Skip invalid items
+      
+      const existingIndex = mergedMetadata.findIndex(item => 
+        (item.topicId && item.topicId === newItem.topicId) || 
+        (item.subject && item.subject === newItem.subject && !item.topicId)
+      );
+      
+      if (existingIndex >= 0) {
+        // Update existing item
+        mergedMetadata[existingIndex] = { ...newItem };
+      } else {
+        // Add new item
+        mergedMetadata.push({ ...newItem });
+      }
+    });
+    
+    // Create an update object that contains merged data
+    const updateData = {
+      // Update the following fields
+      [FIELD_MAPPING.topicLists]: JSON.stringify(mergedTopicLists),
+      [FIELD_MAPPING.topicMetadata]: JSON.stringify(mergedMetadata),
+      [FIELD_MAPPING.lastSaved]: new Date().toISOString()
+    };
+    
+    // Log what we're updating
+    debugLog("UPDATING WITH MERGED DATA", {
+      originalTopicListsCount: existingTopicLists.length,
+      newTopicListsCount: newTopicLists.length,
+      mergedTopicListsCount: mergedTopicLists.length,
+      originalMetadataCount: existingMetadata.length,
+      newMetadataCount: newTopicMetadata.length,
+      mergedMetadataCount: mergedMetadata.length,
+      recordId: recordId,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Implement retry mechanism for more reliable saving
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    function attemptSave() {
+      // Save to Knack
+      $.ajax({
+        url: KNACK_API_URL + '/objects/' + FLASHCARD_OBJECT + '/records/' + recordId,
+        type: 'PUT',
+        headers: {
+          'X-Knack-Application-Id': knackAppId,
+          'X-Knack-REST-API-Key': knackApiKey,
+          'Authorization': Knack.getUserToken(),
+          'Content-Type': 'application/json'
+        },
+        data: JSON.stringify(updateData),
+        success: function(response) {
+          console.log(`Flashcard app [${new Date().toISOString()}]: Successfully saved topic list data:`, response.id);
+          debugLog("SAVE SUCCESS", {
+            recordId: response.id,
+            timestamp: new Date().toISOString()
+          });
+          
+          // If successful, verify the save immediately
+          verifyDataSave(recordId);
+          
+          // IMPORTANT: Create topic shells immediately when topic lists are saved
+          if (mergedTopicLists && mergedTopicLists.length > 0) {
+            console.log(`Flashcard app [${new Date().toISOString()}]: Creating topic shells for ${mergedTopicLists.length} topic lists`);
+            createTopicShellsFromLists(mergedTopicLists, recordId);
+          } else {
+            console.log(`Flashcard app [${new Date().toISOString()}]: No topic lists to create shells from`);
+          }
+          
+          callback(true);
+        },
+        error: function(error) {
+          console.error(`Flashcard app [${new Date().toISOString()}]: Error saving topic list data:`, error);
+          debugLog("SAVE ERROR", {
+            recordId: recordId,
+            errorStatus: error.status,
+            errorText: error.statusText,
+            retryCount: retryCount
+          });
+          
+          // Retry logic for failed saves
+          if (retryCount < maxRetries) {
+            console.log(`Flashcard app [${new Date().toISOString()}]: Retrying save (${retryCount + 1}/${maxRetries})...`);
+            retryCount++;
+            // Wait before retrying
+            setTimeout(attemptSave, 1000);
+          } else {
+            callback(false);
+          }
+        }
+      });
+    }
+    
+    // Start the save process
+    attemptSave();
+  });
 }
 
 // Verify that data was saved correctly and fix any issues
@@ -1963,13 +1928,7 @@ function createTopicShellsFromLists(topicLists, recordId) {
                   shouldReload: true // Signal that a reload is needed
                 }, '*');
                 
-                // Also send a reload signal as a separate message to ensure it gets processed
-                setTimeout(() => {
-                  iframe.contentWindow.postMessage({
-                    type: 'RELOAD_APP_DATA',
-                    timestamp: new Date().toISOString()
-                  }, '*');
-                }, 500);
+                // No longer sending a separate reload message - React app will handle shouldReload flag
               }
             }
           },
@@ -2587,4 +2546,147 @@ function handleAddToBank(data, callback) {
     callback(false);
   }
 }
+
+// Add to KnackJavascript4i.js
+let saveInProgress = false;
+let saveQueued = false;
+
+function handleSaveData(data) {
+  if (saveInProgress) {
+    saveQueued = true;
+    console.log("Save already in progress, queueing this save");
+    return;
+  }
+  
+  saveInProgress = true;
+  
+  // Existing save logic
+  actualSaveFunction(data).then(() => {
+    saveInProgress = false;
+    if (saveQueued) {
+      saveQueued = false;
+      console.log("Processing queued save");
+      handleSaveData(data);
+    }
+  }).catch(err => {
+    saveInProgress = false;
+    console.error("Save failed:", err);
+  });
+}
+
+// Convert existing save functions to use Promises
+function actualSaveFunction(data) {
+  return new Promise((resolve, reject) => {
+    const userId = window.currentKnackUser?.id;
+    
+    if (!userId) {
+      console.error("Cannot save - missing user ID");
+      reject(new Error("Missing user ID"));
+      return;
+    }
+    
+    // Handle different save types
+    if (data.preserveFields === true) {
+      handlePreserveFieldsDataSave(userId, data, (success) => {
+        if (success) {
+          resolve(true);
+        } else {
+          reject(new Error("Save failed"));
+        }
+      });
+    } else {
+      saveFlashcardUserData(userId, data, (success) => {
+        if (success) {
+          resolve(true);
+        } else {
+          reject(new Error("Save failed"));
+        }
+      });
+    }
+  });
+}
+
+// Add a generic retry function for API calls
+function retryApiCall(apiCall, maxRetries = 3, delay = 1000) {
+  return new Promise((resolve, reject) => {
+    const attempt = (retryCount) => {
+      apiCall()
+        .then(resolve)
+        .catch((error) => {
+          console.log(`API call failed (attempt ${retryCount + 1}/${maxRetries + 1}): ${error.message || 'Unknown error'}`);
+          
+          // Check if it's an authentication error
+          if (error.status === 403 && retryCount < maxRetries) {
+            console.log(`Authentication error detected, attempting to refresh auth...`);
+            
+            // Try to refresh the auth token
+            refreshAuthentication()
+              .then(() => {
+                console.log(`Auth refreshed, retrying API call after delay...`);
+                setTimeout(() => attempt(retryCount + 1), delay);
+              })
+              .catch((refreshError) => {
+                console.error(`Failed to refresh authentication: ${refreshError.message || 'Unknown error'}`);
+                reject(error);
+              });
+          } else if (retryCount < maxRetries) {
+            console.log(`Retrying API call after delay...`);
+            setTimeout(() => attempt(retryCount + 1), delay);
+          } else {
+            reject(error);
+          }
+        });
+    };
+    
+    attempt(0);
+  });
+}
+
+// Function to refresh authentication
+function refreshAuthentication() {
+  return new Promise((resolve, reject) => {
+    try {
+      // Check if we can get a fresh token from Knack
+      const currentToken = Knack.getUserToken();
+      
+      if (currentToken) {
+        console.log(`Refreshed authentication with current token`);
+        resolve(currentToken);
+      } else {
+        console.error(`Cannot refresh token - not available from Knack`);
+        reject(new Error("Auth token not available"));
+      }
+    } catch (error) {
+      console.error(`Error refreshing authentication:`, error);
+      reject(error);
+    }
+  });
+}
+
+// Modify the handleAddToBank function to return a Promise
+function handleAddToBankPromise(data) {
+  return new Promise((resolve, reject) => {
+    handleAddToBank(data, (success) => {
+      if (success) {
+        resolve(success);
+      } else {
+        reject(new Error("Failed to add to bank"));
+      }
+    });
+  });
+}
+
+// Function to notify the React app about save status
+function notifySaveStatus(status, recordId) {
+  const iframe = document.getElementById('flashcard-app-iframe');
+  if (iframe && iframe.contentWindow) {
+    iframe.contentWindow.postMessage({
+      type: 'SAVE_STATUS',
+      status: status, // 'started', 'completed', 'failed'
+      recordId: recordId,
+      timestamp: new Date().toISOString()
+    }, '*');
+  }
+}
 })();
+
