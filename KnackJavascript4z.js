@@ -12,16 +12,22 @@
   function initializeFlashcardApp(view) {
     console.log("Initializing Flashcard React app for view:", view.key);
     
-    // --- Reverted: Find container and dynamically create iframe --- 
-    var container = $(view.el).find('.kn-rich-text')[0]; 
+    // --- Use view.el directly as the container --- 
+    var container = view.el; // Use the view's main element as the container
     var iframe = null; // Initialize iframe as null
     var loadingDiv = document.getElementById('loading-indicator'); // Assuming this ID exists separately
     
     if (!container) {
-        console.error(`Flashcard app: Could not find container element ('.kn-rich-text') within view ${view.key}. Cannot create iframe.`);
-        if (loadingDiv) loadingDiv.textContent = 'Error: App container not found.'; // Update loading indicator
+        // Error if view.el itself is somehow missing (shouldn't happen if event fired)
+        console.error(`Flashcard app: View element for view ${view.key} not found. Cannot create iframe.`);
+        if (loadingDiv) loadingDiv.textContent = 'Error: App container view not found.'; 
         return; // Stop initialization
     }
+
+    // --- Optional: Clear existing content if necessary --- 
+    // If the Rich Text view might have default text like "Loading..."
+    // container.innerHTML = ''; 
+    // --- End Optional Clear ---
 
     // Dynamically create the iframe
     iframe = document.createElement('iframe');
