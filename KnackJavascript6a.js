@@ -1,3 +1,9 @@
+(function() {
+    // Only run if this is the flashcards app
+    if (!window.VESPA_APPS || !window.VESPA_APPS.flashcards) {
+        console.log("Flashcards app not configured for this view");
+        return;
+    }
 // knack-integration.js - Safe for public GitHub repository
 // Version: 5x (Introduces SaveQueue and corrected message handling)
 (function () {
