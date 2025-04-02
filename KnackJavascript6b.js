@@ -17,12 +17,12 @@
   const knackAppId = window.VESPA_CONFIG.knackAppId;
   const knackApiKey = window.VESPA_CONFIG.knackApiKey;
   const KNACK_API_URL = 'https://api.knack.com/v1';
-  const FLASHCARD_APP_CONFIG = window.VESPA_CONFIG.appConfig || {
+  const FLASHCARD_APP_CONFIG = window.VESPA_APPS.flashcards.appConfig || {
     'scene_1206': {
       'view_3005': {
         appType: 'flashcard-app',
         elementSelector: '.kn-rich-text',
-        appUrl: window.VESPA_CONFIG.appUrl || 'https://vespa-flashcards-e7f31e9ff3c9.herokuapp.com/'
+        appUrl: window.VESPA_APPS.flashcards.appUrl || 'https://vespa-flashcards-e7f31e9ff3c9.herokuapp.com/'
       }
     }
   };
