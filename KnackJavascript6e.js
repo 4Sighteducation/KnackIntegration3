@@ -1,22 +1,28 @@
 // knack-integration.js - Safe for public GitHub repository
 // Version: 5x (Introduces SaveQueue and corrected message handling)
 (function () {
-    // Look for configuration in global scope
-    if (!window.VESPA_CONFIG) {
-      console.error("Flashcard app: Missing VESPA_CONFIG. Please define configuration in Knack.");
-      return;
+    // Only run if this is the flashcards app and config is available
+    if (!window.VESPA_APPS || !window.VESPA_APPS.flashcards) {
+        // console.log("Flashcards app (KnackJavascript6a.js) not configured for this view or config missing."); // Optional log
+        return;
     }
-  
+    console.log("Flashcards app (KnackJavascript6a.js) starting initialization...");
+
+    // Use the namespaced configuration
+    const appConfig = window.VESPA_APPS.flashcards;
+
     // --- Configuration and Constants ---
-    const knackAppId = window.VESPA_CONFIG.knackAppId;
-    const knackApiKey = window.VESPA_CONFIG.knackApiKey;
+    // Get Knack credentials from the namespaced config
+    const knackAppId = appConfig.knackAppId;
+    const knackApiKey = appConfig.knackApiKey;
     const KNACK_API_URL = 'https://api.knack.com/v1';
-    const FLASHCARD_APP_CONFIG = window.VESPA_CONFIG.appConfig || {
+    // Get the scene/view specific config from the namespaced appConfig object
+    const FLASHCARD_APP_CONFIG = appConfig.appConfig || { // Ensure appConfig structure matches Knack builder
       'scene_1206': {
         'view_3005': {
           appType: 'flashcard-app',
           elementSelector: '.kn-rich-text',
-          appUrl: window.VESPA_CONFIG.appUrl || 'https://vespa-flashcards-e7f31e9ff3c9.herokuapp.com/'
+          appUrl: appConfig.appUrl || 'https://vespa-flashcards-e7f31e9ff3c9.herokuapp.com/' // Use appUrl from namespace
         }
       }
     };
